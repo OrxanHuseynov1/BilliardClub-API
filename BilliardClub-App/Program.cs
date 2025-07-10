@@ -1,4 +1,4 @@
-using BusinessLayer;
+﻿using BusinessLayer;
 using DAL.SqlServer;
 using Microsoft.OpenApi.Models;
 
@@ -13,7 +13,6 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "BilliardClub API", Version = "v1" });
 
-    // JWT auth ???n konfiqurasiya
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -21,7 +20,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Bearer {token} format?nda daxil edin. M?s?l?n: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+        Description = "Bearer {token} formatında daxil edin. Məsələn: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6..."
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -46,7 +45,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+            policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://192.168.8.45:5173")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
@@ -60,7 +59,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseHttpsRedirection(); 
 
 app.UseCors(MyAllowSpecificOrigins);
 
