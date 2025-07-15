@@ -1,0 +1,39 @@
+﻿# STEP 1: Build Stage - Tətbiqinizi kompayl edib publish edirik
+# Microsoft .NET SDK image-ni əsas götürürük
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Kontayner daxilində işçi qovluğu təyin edirik
+WORKDIR /src
+
+# Bütün .csproj fayllarını kopyalayırıq və NuGet paketlərini bərpa edirik
+# Bu addım, yalnız .csproj faylı dəyişəndə yenidən icra olunur, performansı artırır
+# Sizin əsas layihə faylınız: BilliardClub-App.csproj
+COPY ["BilliardClub-App.csproj", "./"]
+# Digər layihə referansları üçün də .csproj fayllarını kopyalayırıq
+COPY ["BusinessLayer/BusinessLayer.csproj", "BusinessLayer/"]
+COPY ["DAL.SqlServer/DAL.SqlServer.csproj", "DAL.SqlServer/"]
+
+# Bütün layihələrin asılılıqlarını bərpa edirik
+RUN dotnet restore "BilliardClub-App.csproj"
+
+# Layihənin qalan fayllarını kopyalayırıq
+COPY . .
+
+# Tətbiqi Release rejimində publish edirik
+# Nəticə faylları /app/publish qovluğunda yaranır
+WORKDIR "/src"
+RUN dotnet publish "BilliardClub-App.csproj" -c Release -o /app/publish
+
+# STEP 2: Runtime Stage - Kompayl olunmuş tətbiqi işə salmaq üçün yüngül image
+# Microsoft .NET ASP.NET Runtime image-ni əsas götürürük
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+# Kontayner daxilində işçi qovluğu təyin edirik
+WORKDIR /app
+
+# Publish olunmuş faylları build stage-dən bura kopyalayırıq
+COPY --from=build /app/publish .
+
+# Tətbiqin dinləyəcəyi portu müəyyən edirik (ASP.NET Core üçün standart port)
+EXPOSE 8080
+
+# Kontayner işə düşəndə tətbiqi başlatan əmr
+ENTRYPOINT ["dotnet", "BilliardClub-App.dll"]
