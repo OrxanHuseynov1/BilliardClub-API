@@ -1,5 +1,4 @@
-﻿// BusinessLayer/Services/Implementations/TableSessionService.cs
-using AutoMapper;
+﻿using AutoMapper;
 using BusinessLayer.DTOs.TableSession;
 using DAL.SqlServer.Context;
 using Domain.Entities;
@@ -33,6 +32,12 @@ public class TableSessionService : ITableSessionService
         return Guid.TryParse(companyIdClaim, out var companyId) ? companyId : Guid.Empty;
     }
 
+    private DateTime GetAzerbaijanTime()
+    {
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Azerbaijan Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+    }
+
     public async Task<TableSessionGetDTO?> StartSessionAsync(TableSessionPostDTO dto)
     {
         var userId = GetCurrentUserId();
@@ -41,26 +46,25 @@ public class TableSessionService : ITableSessionService
         var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == dto.TableId && t.CompanyId == companyId && t.DeletedAt == null);
         if (table == null) return null;
 
-        if (table.IsActive)
-        {
-            return null; 
-        }
+        if (table.IsActive) return null;
+
+        var now = GetAzerbaijanTime();
 
         var session = new TableSession
         {
             Id = Guid.NewGuid(),
             TableId = dto.TableId,
-            StartTime = DateTime.Now,
+            StartTime = now,
             HourlyPrice = dto.HourlyPrice,
             CompanyId = companyId,
-            CreatedAt = DateTime.Now,
+            CreatedAt = now,
             CreatedBy = userId
         };
 
         _context.TableSessions.Add(session);
 
         table.IsActive = true;
-        table.LastModifiedAt = DateTime.Now;
+        table.LastModifiedAt = now;
         table.LastModifiedBy = userId;
 
         await _context.SaveChangesAsync();
@@ -73,7 +77,7 @@ public class TableSessionService : ITableSessionService
             StartTime = session.StartTime,
             EndTime = null,
             HourlyPrice = session.HourlyPrice,
-            PaymentType = session.PaymentType, 
+            PaymentType = session.PaymentType,
             SessionProducts = new List<SessionProductGetDTO>()
         };
     }
@@ -86,23 +90,20 @@ public class TableSessionService : ITableSessionService
                 .ThenInclude(sp => sp.Product)
             .FirstOrDefaultAsync(s => s.Id == sessionId && s.DeletedAt == null);
 
-        if (session == null) return null;
+        if (session == null || session.EndTime != null) return null;
 
-        if (session.EndTime != null)
-        {
-            return null; 
-        }
+        var now = GetAzerbaijanTime();
 
-        session.EndTime = DateTime.Now;
-        session.LastModifiedAt = DateTime.Now;
+        session.EndTime = now;
+        session.LastModifiedAt = now;
         session.LastModifiedBy = GetCurrentUserId();
-        session.PaymentType = dto.PaymentType; 
+        session.PaymentType = dto.PaymentType;
 
         var table = session.Table;
         if (table != null)
         {
             table.IsActive = false;
-            table.LastModifiedAt = DateTime.Now;
+            table.LastModifiedAt = now;
             table.LastModifiedBy = GetCurrentUserId();
         }
 
@@ -160,8 +161,8 @@ public class TableSessionService : ITableSessionService
 
         var sessions = await query
             .OrderByDescending(s => s.EndTime)
-            .Skip((pageNumber - 1) * pageSize) 
-            .Take(pageSize)                   
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return _mapper.Map<IEnumerable<TableSessionGetDTO>>(sessions);
